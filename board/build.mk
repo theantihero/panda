@@ -8,7 +8,7 @@ DFU_UTIL = "dfu-util"
 ifeq (,$(wildcard /EON))
   BUILDER = DEV
 else
-  CFLAGS += "-DEON"
+#  CFLAGS += "-DEON"
   BUILDER = EON
   DFU_UTIL = "tools/dfu-util-aarch64"
 endif
