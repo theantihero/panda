@@ -1,3 +1,4 @@
+#include "safety_teslaradar.h"
 // board enforces
 //   in-state
 //      accel set/resume
