@@ -13,7 +13,8 @@ const AddrBus HONDA_BG_TX_MSGS[] = {{0xE4, 0}, {0xE4, 2}, {0x1DF, 0}, {0x1EF, 0}
 const AddrBus HONDA_BH_TX_MSGS[] = {{0xE4, 0}, {0xE4, 1}, {0x1DF, 1}, {0x1EF, 1}, {0x296, 1}, {0x30C, 1}, {0x33D, 0}, {0x33D, 1}, {0x39F, 1}};  // Bosch Harness
 const int HONDA_GAS_INTERCEPTOR_THRESHOLD = 328;  // ratio between offset and gain from dbc file
 const int HONDA_BOSCH_NO_GAS_VALUE = -30000; // value sent when not requesting gas
-const int HONDA_BOSCH_STANDSTILL_ACCEL_VALUE = -400; // value sent when holding vehicle stopped
+const int HONDA_BOSCH_GAS_MAX = 2000;
+const int HONDA_BOSCH_ACCEL_MIN = -350; // max braking == -3.5m/s2
 
 // Nidec and Bosch giraffe have pt on bus 0
 AddrCheckStruct honda_rx_checks[] = {
@@ -228,7 +229,7 @@ static int honda_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
       }
     }
     // TODO: STANDSTILL bit dangerous to be set when moving?
-    if (accel < HONDA_BOSCH_STANDSTILL_ACCEL_VALUE) {
+    if (accel < HONDA_BOSCH_ACCEL_MIN) {
       tx = 0;
     }
 
@@ -238,6 +239,9 @@ static int honda_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
       if (gas != HONDA_BOSCH_NO_GAS_VALUE) {
         tx = 0;
       }
+    }
+    if (gas > HONDA_BOSCH_GAS_MAX) {
+      tx = 0;
     }
   }
 
@@ -251,7 +255,7 @@ static int honda_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
     }
   }
 
-  // GAS: safety check (nidec)
+  // GAS: safety check (interceptor)
   if (addr == 0x200) {
     if (!current_controls_allowed) {
       if (!(honda_hw == HONDA_BG_HW) && (GET_BYTE(to_send, 0) || GET_BYTE(to_send, 1))) {
