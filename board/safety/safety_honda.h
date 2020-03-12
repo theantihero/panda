@@ -32,10 +32,12 @@ AddrCheckStruct honda_bh_rx_checks[] = {
 };
 const int HONDA_BH_RX_CHECKS_LEN = sizeof(honda_bh_rx_checks) / sizeof(honda_bh_rx_checks[0]);
 
+int honda_gas_prev = 0;
 int honda_brake = 0;
 bool honda_moving = false;
 bool honda_alt_brake_msg = false;
 bool honda_fwd_brake = false;
+bool honda_brake_pressed_prev = false;
 enum {HONDA_N_HW, HONDA_BG_HW, HONDA_BH_HW} honda_hw = HONDA_N_HW;
 
 
@@ -137,10 +139,10 @@ static int honda_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
     if (!gas_interceptor_detected) {
       if (addr == 0x17C) {
         int gas = GET_BYTE(to_push, 0);
-        if (gas && !honda_gas_prev && !(honda_hw == HONDA_BG_HW)) {
+        if (gas && !honda_gas_prev) {
           controls_allowed = 0;
         }
-        gas_pressed_prev = gas_pressed;
+        honda_gas_prev = gas;
       }
     }
     if ((bus == 2) && (addr == 0x1FA)) {
