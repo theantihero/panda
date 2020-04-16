@@ -9,7 +9,14 @@
 const AddrBus HONDA_N_TX_MSGS[] = {{0xE4, 0}, {0x194, 0}, {0x1FA, 0}, {0x200, 0}, {0x30C, 0}, {0x33D, 0}};
 const AddrBus HONDA_BG_TX_MSGS[] = {{0xE4, 0}, {0xE4, 2}, {0xE5, 2}, {0x1DF, 0}, {0x1EF, 0}, {0x296, 0}, {0x30C, 0}, {0x33D, 0}, {0x33D, 2}, {0x39F, 0}, {0x18DAB0F1, 0}};  // Bosch Giraffe
 const AddrBus HONDA_BH_TX_MSGS[] = {{0xE4, 0}, {0xE4, 1}, {0xE5, 0}, {0x1DF, 1}, {0x1EF, 1}, {0x296, 1}, {0x30C, 1}, {0x33D, 0}, {0x33D, 1}, {0x39F, 1}, {0x18DAB0F1, 1}};  // Bosch Harness
-const int HONDA_GAS_INTERCEPTOR_THRESHOLD = 328;  // ratio between offset and gain from dbc file
+// Roughly calculated using the offsets in openpilot +5%:
+// In openpilot: ((gas1_norm + gas2_norm)/2) > 15
+// gas_norm1 = ((gain_dbc1*gas1) + offset_dbc)
+// gas_norm2 = ((gain_dbc2*gas2) + offset_dbc)
+// assuming that 2*(gain_dbc1*gas1) == (gain_dbc2*gas2)
+// In this safety: ((gas1 + (gas2/2))/2) > THRESHOLD
+const int HONDA_GAS_INTERCEPTOR_THRESHOLD = 344;
+#define HONDA_GET_INTERCEPTOR(msg) (((GET_BYTE((msg), 0) << 8) + GET_BYTE((msg), 1) + ((GET_BYTE((msg), 2) << 8) + GET_BYTE((msg), 3)) / 2 ) / 2) // avg between 2 tracks
 const int HONDA_BOSCH_NO_GAS_VALUE = -30000; // value sent when not requesting gas
 const int HONDA_BOSCH_GAS_MAX = 2000;
 const int HONDA_BOSCH_ACCEL_MIN = -350; // max braking == -3.5m/s2
@@ -125,7 +132,7 @@ static int honda_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
     // length check because bosch hardware also uses this id (0x201 w/ len = 8)
     if ((addr == 0x201) && (len == 6)) {
       gas_interceptor_detected = 1;
-      int gas_interceptor = GET_INTERCEPTOR(to_push);
+      int gas_interceptor = HONDA_GET_INTERCEPTOR(to_push);
       if (!unsafe_allow_gas && (gas_interceptor > HONDA_GAS_INTERCEPTOR_THRESHOLD) &&
           (gas_interceptor_prev <= HONDA_GAS_INTERCEPTOR_THRESHOLD)) {
         controls_allowed = 0;
