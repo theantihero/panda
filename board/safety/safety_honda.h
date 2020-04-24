@@ -7,8 +7,8 @@
 //      brake rising edge
 //      brake > 0mph
 const AddrBus HONDA_N_TX_MSGS[] = {{0xE4, 0}, {0x194, 0}, {0x1FA, 0}, {0x200, 0}, {0x30C, 0}, {0x33D, 0}};
-const AddrBus HONDA_BG_TX_MSGS[] = {{0xE4, 0}, {0xE4, 2}, {0x1DF, 0}, {0x1EF, 0}, {0x296, 0}, {0x30C, 0}, {0x33D, 0}, {0x33D, 2}, {0x39F, 0}, {0x18DAB0F1, 0}};  // Bosch Giraffe
-const AddrBus HONDA_BH_TX_MSGS[] = {{0xE4, 0}, {0xE4, 1}, {0x1DF, 1}, {0x1EF, 1}, {0x296, 1}, {0x30C, 1}, {0x33D, 0}, {0x33D, 1}, {0x39F, 1}, {0x18DAB0F1, 1}};  // Bosch Harness
+const AddrBus HONDA_BG_TX_MSGS[] = {{0xE4, 0}, {0xE4, 2}, {0xE5, 2}, {0x1DF, 0}, {0x1EF, 0}, {0x296, 0}, {0x30C, 0}, {0x33D, 0}, {0x33D, 2}, {0x39F, 0}, {0x18DAB0F1, 0}};  // Bosch Giraffe
+const AddrBus HONDA_BH_TX_MSGS[] = {{0xE4, 0}, {0xE4, 1}, {0xE5, 0}, {0x1DF, 1}, {0x1EF, 1}, {0x296, 1}, {0x30C, 1}, {0x33D, 0}, {0x33D, 1}, {0x39F, 1}, {0x18DAB0F1, 1}};  // Bosch Harness
 const int HONDA_GAS_INTERCEPTOR_THRESHOLD = 328;  // ratio between offset and gain from dbc file
 const int HONDA_BOSCH_NO_GAS_VALUE = -30000; // value sent when not requesting gas
 const int HONDA_BOSCH_GAS_MAX = 2000;
@@ -259,6 +259,11 @@ static int honda_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
     }
   }
 
+    // Bosch supplemental control check
+  if (addr == 0xE5) {
+    tx = ((GET_BYTE(to_send, 0) << 24U | GET_BYTE(to_send, 1) << 16U | GET_BYTE(to_send, 2) << 8U | GET_BYTE(to_send, 3)) == 0x04008010)? 1 : 0;
+  }
+
   // GAS: safety check (interceptor)
   if (addr == 0x200) {
     if (!current_controls_allowed) {
@@ -318,7 +323,7 @@ static int honda_nidec_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
     if (bus_num == 2) {
       // block stock lkas messages and stock acc messages (if OP is doing ACC)
       int addr = GET_ADDR(to_fwd);
-      bool is_lkas_msg = (addr == 0xE4) || (addr == 0x194) || (addr == 0x33D);
+      bool is_lkas_msg = (addr == 0xE4) || (addr == 0x194) || (addr == 0xE5) || (addr == 0x33D);
       bool is_acc_hud_msg = addr == 0x30C;
       bool is_brake_msg = addr == 0x1FA;
       bool block_fwd = is_lkas_msg || is_acc_hud_msg || (is_brake_msg && !honda_fwd_brake);
